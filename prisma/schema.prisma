@@ -14,18 +14,6 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
-
-    @@index([name])
-}
-
 // Necessary for Next auth
 model Account {
     id                       String  @id @default(cuid())
@@ -55,14 +43,17 @@ model Session {
 }
 
 model User {
-    id            String    @id @default(cuid())
+    id            String     @id @default(cuid())
     name          String?
-    email         String?   @unique
+    email         String     @unique
+    username      String     @unique
+    password      String
     emailVerified DateTime?
     image         String?
     accounts      Account[]
     sessions      Session[]
-    posts         Post[]
+    purchases     Purchase[]
+    reviews       Review[]
 }
 
 model VerificationToken {
@@ -71,4 +62,79 @@ model VerificationToken {
     expires    DateTime
 
     @@unique([identifier, token])
+}
+
+model Product {
+    id             Int            @id @default(autoincrement())
+    name           String
+    description    String?
+    price          Decimal        @db.Decimal(10, 2)
+    originalPrice  Decimal        @db.Decimal(10, 2)
+    images         String[]
+    category       String
+    gender         String
+    sizes          String[] // Array of size strings
+    colors         String[] // Array of color strings
+    rating         Decimal        @db.Decimal(3, 2)
+    reviews        Int
+    inStock        Boolean        @default(true)
+    createdAt      DateTime       @default(now())
+    updatedAt      DateTime       @updatedAt
+    productReviews Review[]
+    purchaseItems  PurchaseItem[]
+    Purchase       Purchase[]
+
+    @@map("products")
+}
+
+model Purchase {
+    id              String   @id @default(cuid())
+    userId          String
+    total           Decimal  @db.Decimal(10, 2)
+    shippingMethod  String
+    paymentIntentId String
+    status          String   @default("pending") // pending, completed, cancelled
+    shippingAddress Json // Store shipping address as JSON
+    billingAddress  Json // Store billing address as JSON
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+    items     PurchaseItem[]
+    Product   Product?       @relation(fields: [productId], references: [id])
+    productId Int?
+
+    @@map("purchases")
+}
+
+model PurchaseItem {
+    id         String   @id @default(cuid())
+    purchaseId String
+    productId  Int
+    name       String
+    price      Decimal  @db.Decimal(10, 2)
+    size       String
+    color      String
+    quantity   Int
+    createdAt  DateTime @default(now())
+
+    purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+    product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+    @@map("purchase_items")
+}
+
+model Review {
+    id        String   @id @default(cuid())
+    userId    String
+    productId Int
+    rating    Int // 1-5 stars
+    comment   String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+    product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+    @@map("reviews")
 }
